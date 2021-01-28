@@ -1,0 +1,32 @@
+version: 0.2
+
+env:
+  variables:
+    S3_BUCKET: "fireapparatus.com"
+    APP_NAME: "FireApp"
+    BUILD_ENV: "prod"
+    CDN_DISTRIBUTION_ID: "ESR87NA4LU1F7"
+
+phases:
+  install:
+    runtime-versions:
+      # NodeJS included in the docker image
+      nodejs: 12
+    commands:
+      # Install node dependancies.
+      - npm install
+
+  build:
+    commands:
+      # Builds Angular application.
+      - node ./node_modules/@angular/cli/bin/ng build --$BUILD_ENV
+
+  post_build:
+    commands:
+      # Clear S3 bucket.
+      - aws s3 rm s3://$S3_BUCKET --recursive
+      # Copy files from dist to S3
+      - cd dist
+      - aws s3 cp $APP_NAME s3://$S3_BUCKET --recursive
+      # Begin cloudfront invalidationS
+      - aws cloudfront create-invalidation --distribution-id $CDN_DISTRIBUTION_ID --paths "/*"
